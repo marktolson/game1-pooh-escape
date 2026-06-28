@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POO ESCAPE — Run for the Ocean</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💩</text></svg>" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="game"></canvas>
+    <div id="fog" class="hidden"></div>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div class="hud-left">
+        <div id="health" class="hud-pill">❤️ <span id="health-val">100</span></div>
+        <div id="speed" class="hud-pill">👟 <span id="speed-val">Normal</span></div>
+      </div>
+      <div class="hud-right">
+        <div id="timer" class="hud-pill">⏱️ <span id="timer-val">0.0</span>s</div>
+      </div>
+    </div>
+
+    <!-- Super map (shows bearing to the ocean, not the maze) -->
+    <div id="minimap" class="hidden">
+      <div class="mm-label">🧭 To the ocean</div>
+      <canvas id="minimap-canvas" width="160" height="160"></canvas>
+      <div id="mm-dist" class="mm-dist"></div>
+    </div>
+
+    <!-- Title screen -->
+    <div id="title" class="overlay">
+      <div class="card">
+        <h1>💩 POO ESCAPE</h1>
+        <p class="tag">You got pooped into the sewer. Find your way to the OCEAN.</p>
+        <ul class="legend">
+          <li><span class="dot poo"></span> You — a brave little poo</li>
+          <li><span class="dot tp"></span> Toilet paper — tangles & traps you</li>
+          <li><span class="dot pump-up"></span> Green pump — speed boost</li>
+          <li><span class="dot pump-down"></span> Red pump — slows you down</li>
+          <li><span class="dot fan"></span> Fan blades — they'll chop you up</li>
+          <li><span class="dot critter"></span> Sewer critters — avoid them</li>
+          <li><span class="dot ocean"></span> The ocean — your freedom</li>
+        </ul>
+        <p class="controls">Move with <b>WASD</b> / <b>Arrow keys</b>. You can only see what's near you.</p>
+        <button id="start-btn">Get Pooped Out ▶</button>
+      </div>
+    </div>
+
+    <!-- End screen -->
+    <div id="end" class="overlay hidden">
+      <div class="card">
+        <h1 id="end-title">You made it!</h1>
+        <p id="end-msg" class="tag"></p>
+        <button id="restart-btn">Play Again ↺</button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="overlay">
+      <div class="card"><h1>💩</h1><p class="tag">Loading the sewer…</p></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
