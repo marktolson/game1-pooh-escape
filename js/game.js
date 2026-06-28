@@ -43,53 +43,140 @@ export function createGame() {
     return false;
   }
 
+  // ---------- sewer textures ----------
+  // Grimy, wet sewer floor tile (tileable; one cell == one world tile).
+  function makeFloorTexture() {
+    const c = document.createElement("canvas");
+    c.width = c.height = 128;
+    const x = c.getContext("2d");
+    x.fillStyle = "#1d2a23";
+    x.fillRect(0, 0, 128, 128);
+    // mottled sludge stains
+    for (let i = 0; i < 26; i++) {
+      const r = 6 + Math.random() * 28;
+      const px = Math.random() * 128;
+      const py = Math.random() * 128;
+      const g = x.createRadialGradient(px, py, 0, px, py, r);
+      const tint = Math.random() < 0.5 ? "38,55,40" : "30,40,30";
+      g.addColorStop(0, `rgba(${tint},0.45)`);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      x.fillStyle = g;
+      x.beginPath(); x.arc(px, py, r, 0, Math.PI * 2); x.fill();
+    }
+    // fine speckle grime
+    for (let i = 0; i < 400; i++) {
+      x.fillStyle = Math.random() < 0.5 ? "rgba(10,16,12,0.5)" : "rgba(70,90,72,0.25)";
+      x.fillRect(Math.random() * 128, Math.random() * 128, 1.5, 1.5);
+    }
+    // grout border (tile seams) — darker recessed edge
+    x.strokeStyle = "rgba(8,12,9,0.85)";
+    x.lineWidth = 5;
+    x.strokeRect(0, 0, 128, 128);
+    x.strokeStyle = "rgba(60,80,62,0.18)";
+    x.lineWidth = 1.5;
+    x.strokeRect(4, 4, 120, 120);
+    // wet sheen
+    const sh = x.createLinearGradient(0, 0, 128, 128);
+    sh.addColorStop(0, "rgba(120,160,150,0.07)");
+    sh.addColorStop(0.5, "rgba(0,0,0,0)");
+    x.fillStyle = sh;
+    x.fillRect(0, 0, 128, 128);
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  // Mossy sewer brick block with a beveled, raised look.
+  function makeWallTexture() {
+    const c = document.createElement("canvas");
+    c.width = c.height = 128;
+    const x = c.getContext("2d");
+    // mortar base
+    x.fillStyle = "#19241b";
+    x.fillRect(0, 0, 128, 128);
+    // brick courses
+    const bh = 21;
+    let row = 0;
+    for (let by = -bh; by < 128; by += bh) {
+      const offset = row % 2 ? 32 : 0;
+      for (let bx = -64 + offset; bx < 128; bx += 64) {
+        const shade = 0.82 + Math.random() * 0.36;
+        const base = new THREE.Color(0x40624a).multiplyScalar(shade);
+        x.fillStyle = `rgb(${(base.r * 255) | 0},${(base.g * 255) | 0},${(base.b * 255) | 0})`;
+        const px = bx + 3, py = by + 3, pw = 64 - 6, ph = bh - 6;
+        x.fillRect(px, py, pw, ph);
+        // bevel: lighter top/left, darker bottom/right
+        x.fillStyle = "rgba(150,180,150,0.28)";
+        x.fillRect(px, py, pw, 3);
+        x.fillRect(px, py, 3, ph);
+        x.fillStyle = "rgba(0,0,0,0.4)";
+        x.fillRect(px, py + ph - 3, pw, 3);
+        x.fillRect(px + pw - 3, py, 3, ph);
+      }
+      row++;
+    }
+    // moss/grime patches
+    for (let i = 0; i < 14; i++) {
+      const r = 8 + Math.random() * 22;
+      const px = Math.random() * 128;
+      const py = Math.random() * 128;
+      const g = x.createRadialGradient(px, py, 0, px, py, r);
+      g.addColorStop(0, "rgba(46,74,40,0.5)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      x.fillStyle = g;
+      x.beginPath(); x.arc(px, py, r, 0, Math.PI * 2); x.fill();
+    }
+    // dark drip streaks
+    for (let i = 0; i < 6; i++) {
+      x.fillStyle = "rgba(8,14,9,0.4)";
+      x.fillRect(Math.random() * 128, 0, 2 + Math.random() * 3, 128);
+    }
+    // outer recessed edge so blocks read as raised
+    x.strokeStyle = "rgba(6,10,7,0.9)";
+    x.lineWidth = 4;
+    x.strokeRect(0, 0, 128, 128);
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 4;
+    return tex;
+  }
+
   // ---------- floor ----------
-  const floorW = W * T;
-  const floorH = H * T;
+  const backdrop = new THREE.Mesh(
+    new THREE.PlaneGeometry(400, 400),
+    new THREE.MeshBasicMaterial({ color: 0x0a120d })
+  );
+  backdrop.position.set(W / 2 - 0.5, -(H / 2 - 0.5), -1.3);
+  scene.add(backdrop);
+
+  const floorTex = makeFloorTexture();
+  floorTex.repeat.set(W, H);
   const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(floorW + 4, floorH + 4),
-    new THREE.MeshBasicMaterial({ color: 0x16241c })
+    new THREE.PlaneGeometry(W, H),
+    new THREE.MeshBasicMaterial({ map: floorTex })
   );
   floor.position.set(W / 2 - 0.5, -(H / 2 - 0.5), -1);
   scene.add(floor);
 
-  // subtle floor grid lines
-  const gridMat = new THREE.LineBasicMaterial({ color: 0x1f3328 });
-  const gpts = [];
-  for (let x = 0; x < W; x++) { gpts.push(x - 0.5, 0.5, -0.9, x - 0.5, -(H - 0.5), -0.9); }
-  for (let y = 0; y < H; y++) { gpts.push(-0.5, -(y - 0.5), -0.9, W - 0.5, -(y - 0.5), -0.9); }
-  const gridGeo = new THREE.BufferGeometry();
-  gridGeo.setAttribute("position", new THREE.Float32BufferAttribute(gpts, 3));
-  scene.add(new THREE.LineSegments(gridGeo, gridMat));
-
-  // ---------- walls (instanced) ----------
+  // ---------- walls (instanced, mossy brick) ----------
   const wallTiles = [];
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) if (solid[y][x]) wallTiles.push([x, y]);
 
   const wallGeo = new THREE.PlaneGeometry(1, 1);
-  const wallMat = new THREE.MeshBasicMaterial({ color: 0x3a5a3f });
+  const wallMat = new THREE.MeshBasicMaterial({ map: makeWallTexture() });
   const walls = new THREE.InstancedMesh(wallGeo, wallMat, wallTiles.length);
   const dummy = new THREE.Object3D();
+  const wallTint = new THREE.Color();
   wallTiles.forEach(([x, y], i) => {
     dummy.position.set(x, -y, 0);
     dummy.updateMatrix();
     walls.setMatrixAt(i, dummy.matrix);
-    const shade = 0.8 + Math.random() * 0.4;
-    walls.setColorAt(i, new THREE.Color(0x3a5a3f).multiplyScalar(shade));
+    const shade = 0.82 + Math.random() * 0.32;
+    walls.setColorAt(i, wallTint.setRGB(shade, shade, shade));
   });
   walls.instanceColor.needsUpdate = true;
   scene.add(walls);
-
-  // wall top edge highlight (slightly smaller lighter squares)
-  const capMat = new THREE.MeshBasicMaterial({ color: 0x4f7a57 });
-  const caps = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.9, 0.9), capMat, wallTiles.length);
-  wallTiles.forEach(([x, y], i) => {
-    dummy.position.set(x, -y, 0.001);
-    dummy.updateMatrix();
-    caps.setMatrixAt(i, dummy.matrix);
-  });
-  scene.add(caps);
 
   // ---------- helpers to pick tiles ----------
   const floors = openTiles(maze);
@@ -282,11 +369,9 @@ export function createGame() {
     if (!circleHitsWall(playerPos.x, ny, PLAYER_R)) playerPos.y = ny;
 
     player.position.set(playerPos.x, playerPos.y, 0.2);
-    // face movement
-    if (moving) {
-      const targetAngle = Math.atan2(input.y, input.x) - Math.PI / 2;
-      player.rotation.z += (targetAngle - player.rotation.z) * Math.min(1, dt * 10);
-    }
+    // stay upright (classic poo look); just lean slightly into horizontal movement
+    const targetLean = -input.x * 0.18;
+    player.rotation.z += (targetLean - player.rotation.z) * Math.min(1, dt * 10);
     // little squash bob
     const bob = 1 + Math.sin(state.time * 12) * (moving ? 0.06 : 0.02);
     player.scale.set(1 / bob, bob, 1);

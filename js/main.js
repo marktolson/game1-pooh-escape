@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { createIntro } from "./intro.js";
 import { createGame } from "./game.js";
+import { createCelebration, playWinFanfare } from "./celebrate.js";
 
 const canvas = document.getElementById("game");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -41,9 +42,10 @@ function readInput() {
 }
 
 // ---------- mode management ----------
-let mode = "title"; // title | intro | play | end
+let mode = "title"; // title | intro | play | celebrate | end
 let intro = null;
 let game = null;
+let celebrate = null;
 let active = null; // {scene, camera}
 
 function sizeRenderer() {
@@ -58,13 +60,17 @@ function sizeRenderer() {
     intro.camera.updateProjectionMatrix();
   }
   if (game) game.resize(aspect);
+  if (celebrate) celebrate.resize(aspect);
 }
 addEventListener("resize", sizeRenderer);
 
 function startIntro() {
   titleEl.classList.add("hidden");
   endEl.classList.add("hidden");
+  endEl.classList.remove("win");
+  endTitle.classList.remove("party-title");
   if (game) { game.dispose(); game = null; }
+  if (celebrate) { celebrate.dispose(); celebrate = null; }
   intro = createIntro();
   active = intro;
   mode = "intro";
@@ -82,18 +88,46 @@ function startGame() {
   sizeRenderer();
 }
 
+const WIN_TITLES = [
+  "🌊 FREEEEDOM!!! 🌊",
+  "🏖️ OCEAN POO!! 🏖️",
+  "🎉 SPLASHDOWN! 🎉",
+  "🏄 SURF'S UP, POO! 🏄",
+  "⭐ TURD OF THE SEA! ⭐",
+];
+const WIN_MSGS = [
+  "From the toilet bowl to the open sea in {t}s. Absolute legend. 🏆💩",
+  "{t}s of dodging fans and toilet paper, and now? Pure salty freedom. 🌊",
+  "You did it, you beautiful brown hero. Escape time: {t}s. The fish are cheering. 🐠",
+  "Cannonball! {t}s. The ocean may never recover. 🌊💩",
+  "Certified Free-Range Ocean Poo™ in just {t}s. Put on your shades. 😎",
+  "Sploosh! {t}s. Somewhere, a shark just gained a weird new friend. 🦈",
+];
+const pick = (a) => a[(Math.random() * a.length) | 0];
+
 function endGame(won) {
-  mode = "end";
+  titleEl.classList.add("hidden");
   hud.classList.add("hidden");
   fog.classList.add("hidden");
   minimap.classList.add("hidden");
   const t = game ? game.state.time.toFixed(1) : "0";
   if (won) {
-    endTitle.textContent = "🌊 You reached the ocean!";
-    endMsg.textContent = `Freedom at last. Escape time: ${t}s. You are one heroic poo.`;
+    mode = "celebrate";
+    if (game) { game.dispose(); game = null; }
+    celebrate = createCelebration();
+    active = celebrate;
+    endTitle.textContent = pick(WIN_TITLES);
+    endTitle.classList.add("party-title");
+    endMsg.textContent = pick(WIN_MSGS).replace("{t}", t);
+    endEl.classList.add("win");
+    playWinFanfare();
+    sizeRenderer();
   } else {
-    endTitle.textContent = "💀 Flushed out…";
+    mode = "end";
+    endTitle.textContent = "Flushed out…";
+    endTitle.classList.remove("party-title");
     endMsg.textContent = `The sewer got you after ${t}s. Wanna give it another go?`;
+    endEl.classList.remove("win");
   }
   endEl.classList.remove("hidden");
 }
@@ -209,6 +243,9 @@ function loop(now) {
     drawMinimap();
     if (status === "win") endGame(true);
     else if (status === "lose") endGame(false);
+  } else if (mode === "celebrate" && celebrate) {
+    celebrate.update(dt);
+    renderer.render(celebrate.scene, celebrate.camera);
   } else if (active) {
     renderer.render(active.scene, active.camera);
   }
